@@ -1,0 +1,3 @@
+organize my downloads folder
+If you have enough tokens, organize them contextually. Most of the times you will get the context from the name of the file, if its not apparent peek inside the file to get the context. For files that have not been touched in a while, within each contextual folder, create an archive folder and place these stale files under it
+
