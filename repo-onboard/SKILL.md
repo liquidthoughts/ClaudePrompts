@@ -195,17 +195,57 @@ Be dense. No filler. Future agents read this instead of re-reading source files.
 
 Check if `$CLAUDE_DIR/CLAUDE.md` exists.
 
-**If it exists:** check whether it already imports `project_repo_reference.md`. If not, add this line at the top:
+**If it exists:** check whether it already imports `project_repo_reference.md`. If not, prepend this block at the top (do not duplicate if already present):
 ```
 @project_repo_reference.md
+
+> Do not use worktree isolation (isolation: "worktree") when launching agents in this repo.
 ```
 
 **If it does not exist:** create it with:
 ```markdown
 @project_repo_reference.md
+
+> Do not use worktree isolation (isolation: "worktree") when launching agents in this repo.
 ```
 
-This makes Claude Code auto-load the reference for every developer on every platform without any manual steps.
+This makes Claude Code auto-load the reference for every developer on every platform without any manual steps, and suppresses worktree creation.
+
+---
+
+## Step 6b — Suppress worktrees in .gitignore
+
+Check if a `.gitignore` exists at the repo root:
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+test -f "$REPO_ROOT/.gitignore" && echo "EXISTS"
+```
+
+**If it exists:** check whether `.claude/worktrees/` is already present. If not, append:
+```
+# Claude Code agent worktrees (ephemeral, do not commit)
+.claude/worktrees/
+```
+
+**If it does not exist:** create `$REPO_ROOT/.gitignore` with:
+```
+# Claude Code agent worktrees (ephemeral, do not commit)
+.claude/worktrees/
+```
+
+Also clean up any existing worktrees that were already created:
+```bash
+git worktree list
+```
+For each worktree listed under `.claude/worktrees/`, run:
+```bash
+git worktree remove --force "<path>"
+```
+Then prune stale refs:
+```bash
+git worktree prune
+```
 
 ---
 
@@ -225,30 +265,27 @@ If it does not exist: create `$CLAUDE_DIR/settings.json` with the following cont
 {
   "permissions": {
     "allow": [
-      "Bash",
-      "Bash(*)",
-      "Read",
-      "Write",
-      "Edit",
-      "Glob",
-      "Grep",
+      "Read(./**)",
+      "Write(.claude/**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
       "WebSearch",
       "Bash(git *)",
       "Bash(npm *)",
+      "Bash(npm install*)",
       "Bash(node *)",
-      "Bash(node -e \":*)",
-      "Bash(find *)",
+      "Bash(find . *)",
+      "Bash(find ./*)",
       "Bash(grep *)",
       "Bash(sed *)",
       "Bash(awk *)",
-      "Bash(cat *)",
+      "Bash(cat ./*)",
       "Bash(ls *)",
-      "Bash(mkdir *)",
-      "Bash(cp *)",
-      "Bash(mv *)",
-      "Bash(rm *)",
-      "Bash(chmod *)",
-      "Bash(curl *)",
+      "Bash(ls)",
+      "Bash(mkdir -p ./*)",
+      "Bash(cp ./* ./*)",
+      "Bash(mv ./* ./*)",
       "Bash(jq *)",
       "Bash(sort *)",
       "Bash(uniq *)",
@@ -260,7 +297,8 @@ If it does not exist: create `$CLAUDE_DIR/settings.json` with the following cont
       "Bash(pwd)",
       "Bash(which *)",
       "Bash(where *)",
-      "Bash(touch *)",
+      "Bash(touch ./*)",
+      "Bash(curl -s *)",
       "mcp__claude_ai_Atlassian__atlassianUserInfo",
       "mcp__claude_ai_Atlassian__getAccessibleAtlassianResources",
       "mcp__claude_ai_Atlassian__getVisibleJiraProjects",
