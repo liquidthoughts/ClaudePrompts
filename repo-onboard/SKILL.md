@@ -33,7 +33,7 @@ If the file exists: **stop immediately.** Report:
 
 Do not re-explore, do not overwrite. If the user explicitly asks to refresh or re-run, they must pass the flag `--refresh` (e.g., `/repo-onboard --refresh`), in which case skip this check and proceed.
 
-Create the directory if absent:
+Create the `.claude/` directory if absent:
 
 ```bash
 mkdir -p "$CLAUDE_DIR"
@@ -45,7 +45,93 @@ Files here are committed with the repo. Every developer who clones gets the refe
 
 ---
 
-## Step 2 — Explore repo structure
+## Step 2 — Create .claude/settings.json
+
+Do this before any file reads or writes so permissions are in place for all remaining steps.
+
+Check if `$CLAUDE_DIR/settings.json` already exists:
+
+```bash
+test -f "$CLAUDE_DIR/settings.json" && echo "EXISTS"
+```
+
+If it exists: **skip this step entirely.** Do not overwrite. Report it was skipped.
+
+If it does not exist: create `$CLAUDE_DIR/settings.json` with the following content exactly:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Read(./**)",
+      "Write(.claude/**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "WebSearch",
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(npm install*)",
+      "Bash(node *)",
+      "Bash(find . *)",
+      "Bash(find ./*)",
+      "Bash(grep *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(cat ./*)",
+      "Bash(ls *)",
+      "Bash(ls)",
+      "Bash(mkdir *)",
+      "Bash(mkdir -p *)",
+      "Bash(mkdir -p ./*)",
+      "Bash(cp ./* ./*)",
+      "Bash(mv ./* ./*)",
+      "Bash(jq *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(xargs *)",
+      "Bash(echo *)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(where *)",
+      "Bash(touch ./*)",
+      "Bash(curl -s *)",
+      "mcp__claude_ai_Atlassian__atlassianUserInfo",
+      "mcp__claude_ai_Atlassian__getAccessibleAtlassianResources",
+      "mcp__claude_ai_Atlassian__getVisibleJiraProjects",
+      "mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql",
+      "mcp__claude_ai_Atlassian__getJiraIssue",
+      "mcp__claude_ai_Atlassian__editJiraIssue",
+      "mcp__claude_ai_Atlassian__createJiraIssue",
+      "mcp__claude_ai_Atlassian__addCommentToJiraIssue",
+      "mcp__claude_ai_Atlassian__getTransitionsForJiraIssue",
+      "mcp__claude_ai_Atlassian__transitionJiraIssue",
+      "mcp__claude_ai_Atlassian__getJiraIssueTypeMetaWithFields",
+      "mcp__claude_ai_Atlassian__getJiraProjectIssueTypesMetadata",
+      "mcp__claude_ai_Atlassian__getConfluencePage",
+      "mcp__claude_ai_Atlassian__getConfluenceSpaces",
+      "mcp__claude_ai_Atlassian__getPagesInConfluenceSpace",
+      "mcp__claude_ai_Atlassian__getConfluencePageDescendants",
+      "mcp__claude_ai_Atlassian__getConfluencePageFooterComments",
+      "mcp__claude_ai_Atlassian__getConfluencePageInlineComments",
+      "mcp__claude_ai_Atlassian__createConfluencePage",
+      "mcp__claude_ai_Atlassian__updateConfluencePage",
+      "mcp__claude_ai_Atlassian__searchConfluenceUsingCql",
+      "mcp__claude_ai_Atlassian__searchAtlassian",
+      "mcp__MCP_DOCKER__browser_navigate"
+    ]
+  }
+}
+```
+
+> Note: `settings.json` takes effect on the **next** session load. Permissions for the current run still require user approval for any tool not already allowed globally.
+
+---
+
+## Step 3 — Explore repo structure
 
 ```bash
 find . -type f | grep -vE "node_modules|\.git|dist|build|\.class$|\.pyc$" | sort
@@ -55,7 +141,7 @@ Note: top-level dirs, source files, test files, config files, infra files.
 
 ---
 
-## Step 3 — Read these files (in order, skip if absent)
+## Step 4 — Read these files (in order, skip if absent)
 
 | Priority | What to read |
 |----------|-------------|
@@ -71,7 +157,7 @@ Do not read `node_modules/`, `.git/`, build output, or lock files.
 
 ---
 
-## Step 4 — Extract the following
+## Step 5 — Extract the following
 
 ### File Map
 One-line description per file: what it does, what it exports/handles.
@@ -111,7 +197,7 @@ Anything non-obvious that would surprise a developer: unusual ID formats, API re
 
 ---
 
-## Step 5 — Write project_repo_reference.md
+## Step 6 — Write project_repo_reference.md
 
 Write to `$CLAUDE_DIR/project_repo_reference.md`. Use this structure:
 
@@ -191,7 +277,7 @@ Be dense. No filler. Future agents read this instead of re-reading source files.
 
 ---
 
-## Step 6 — Register in CLAUDE.md
+## Step 7 — Register in CLAUDE.md
 
 Check if `$CLAUDE_DIR/CLAUDE.md` exists.
 
@@ -209,13 +295,9 @@ Check if `$CLAUDE_DIR/CLAUDE.md` exists.
 > Do not use worktree isolation (isolation: "worktree") when launching agents in this repo.
 ```
 
-This makes Claude Code auto-load the reference for every developer on every platform without any manual steps, and suppresses worktree creation.
-
 ---
 
-## Step 6b — Suppress worktrees in .gitignore
-
-Check if a `.gitignore` exists at the repo root:
+## Step 8 — Suppress worktrees in .gitignore
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -234,97 +316,17 @@ test -f "$REPO_ROOT/.gitignore" && echo "EXISTS"
 .claude/worktrees/
 ```
 
-Also clean up any existing worktrees that were already created:
+Clean up any existing worktrees:
 ```bash
 git worktree list
 ```
-For each worktree listed under `.claude/worktrees/`, run:
+For each listed under `.claude/worktrees/`:
 ```bash
 git worktree remove --force "<path>"
 ```
-Then prune stale refs:
+Then:
 ```bash
 git worktree prune
-```
-
----
-
-## Step 7 — Create .claude/settings.json
-
-Check if `$CLAUDE_DIR/settings.json` already exists:
-
-```bash
-test -f "$CLAUDE_DIR/settings.json" && echo "EXISTS"
-```
-
-If it exists: **skip this step entirely.** Do not overwrite. Report it was skipped.
-
-If it does not exist: create `$CLAUDE_DIR/settings.json` with the following content exactly:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "Read(./**)",
-      "Write(.claude/**)",
-      "Edit(./**)",
-      "Glob(./**)",
-      "Grep(./**)",
-      "WebSearch",
-      "Bash(git *)",
-      "Bash(npm *)",
-      "Bash(npm install*)",
-      "Bash(node *)",
-      "Bash(find . *)",
-      "Bash(find ./*)",
-      "Bash(grep *)",
-      "Bash(sed *)",
-      "Bash(awk *)",
-      "Bash(cat ./*)",
-      "Bash(ls *)",
-      "Bash(ls)",
-      "Bash(mkdir -p ./*)",
-      "Bash(cp ./* ./*)",
-      "Bash(mv ./* ./*)",
-      "Bash(jq *)",
-      "Bash(sort *)",
-      "Bash(uniq *)",
-      "Bash(head *)",
-      "Bash(tail *)",
-      "Bash(wc *)",
-      "Bash(xargs *)",
-      "Bash(echo *)",
-      "Bash(pwd)",
-      "Bash(which *)",
-      "Bash(where *)",
-      "Bash(touch ./*)",
-      "Bash(curl -s *)",
-      "mcp__claude_ai_Atlassian__atlassianUserInfo",
-      "mcp__claude_ai_Atlassian__getAccessibleAtlassianResources",
-      "mcp__claude_ai_Atlassian__getVisibleJiraProjects",
-      "mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql",
-      "mcp__claude_ai_Atlassian__getJiraIssue",
-      "mcp__claude_ai_Atlassian__editJiraIssue",
-      "mcp__claude_ai_Atlassian__createJiraIssue",
-      "mcp__claude_ai_Atlassian__addCommentToJiraIssue",
-      "mcp__claude_ai_Atlassian__getTransitionsForJiraIssue",
-      "mcp__claude_ai_Atlassian__transitionJiraIssue",
-      "mcp__claude_ai_Atlassian__getJiraIssueTypeMetaWithFields",
-      "mcp__claude_ai_Atlassian__getJiraProjectIssueTypesMetadata",
-      "mcp__claude_ai_Atlassian__getConfluencePage",
-      "mcp__claude_ai_Atlassian__getConfluenceSpaces",
-      "mcp__claude_ai_Atlassian__getPagesInConfluenceSpace",
-      "mcp__claude_ai_Atlassian__getConfluencePageDescendants",
-      "mcp__claude_ai_Atlassian__getConfluencePageFooterComments",
-      "mcp__claude_ai_Atlassian__getConfluencePageInlineComments",
-      "mcp__claude_ai_Atlassian__createConfluencePage",
-      "mcp__claude_ai_Atlassian__updateConfluencePage",
-      "mcp__claude_ai_Atlassian__searchConfluenceUsingCql",
-      "mcp__claude_ai_Atlassian__searchAtlassian",
-      "mcp__MCP_DOCKER__browser_navigate"
-    ]
-  }
-}
 ```
 
 ---
@@ -337,3 +339,4 @@ Report:
 - Whether `CLAUDE.md` was created or updated
 - Whether `settings.json` was created or skipped (already existed)
 - Whether `.claude/` dir was created or already existed
+- Whether `.gitignore` was created or updated
